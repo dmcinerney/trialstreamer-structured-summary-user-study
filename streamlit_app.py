@@ -30,7 +30,7 @@ st.write('# Trialstreamer User Study')
 if 'df' not in st.session_state.keys():
     st.session_state['df'] = pd.DataFrame([], columns=['number', 'search terms', 'system'])
 df = st.session_state['df']
-st.write('You have annotated **%i** instances. You have **%s**completed the final questions' % (len(df[df.number != -1]), '' if -1 in df.number else 'not '))
+st.write('You have annotated **%i** instances. You have **%scompleted** the final questions.' % (len(df[df.number != -1]), '' if -1 in df.number else 'not '))
 with st.expander('All annotations'):
     st.write(df)
 st.download_button('Download CSV', st.session_state.df.to_csv(index=False), file_name='annotations.csv')
