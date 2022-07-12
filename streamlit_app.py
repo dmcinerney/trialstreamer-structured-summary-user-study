@@ -27,6 +27,17 @@ class DeleteExample:
 
 
 st.write('# Trialstreamer User Study')
+if 'name' in st.session_state:
+    name = st.session_state.name
+    st.write('Annotator: ' + name)
+else:
+    name = st.text_input('Enter your name:')
+if name == "":
+    st.stop()
+if 'name' not in st.session_state:
+    st.session_state.name = name
+    st.experimental_rerun()
+st.write('#### WARNING: You must download the csv using the \"Download CSV\" button below BEFORE you exit the window, otherwise all annotations WILL BE LOST.')
 if 'df' not in st.session_state.keys():
     st.session_state['df'] = pd.DataFrame([], columns=['number', 'search terms', 'system'])
 df = st.session_state['df']
@@ -58,6 +69,7 @@ if number == 'Final questions':
         index=0 if current_rows is None else systems_to_index[current_rows.iloc[0].preferred_interface])
     rows = pd.DataFrame([{
         'number': -1,
+        'annotator': name,
         'preferred_summaries': preferred_summaries,
         'preferred_interface': preferred_interface,
     }])
@@ -145,6 +157,7 @@ else:
             format_func=likert_format)
         rows = pd.DataFrame([dict(
             number=number,
+            annotator=name,
             **instance_info,
             readability=readability,
             relevance=relevance,
