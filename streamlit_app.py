@@ -33,8 +33,6 @@ options = ['Add new example', 'Final questions']
 if len(df) > 0:
     options += sorted(list(set(df[df.number != -1].number)))
 fmt = lambda o: o if o not in set(df[df.number != -1].number) else '%s: %s' % (o, df[df.number == o].iloc[0].instance_info['search terms'])
-st.write(df)
-st.write(options)
 number = st.selectbox('Example to edit/annotate:', options, format_func=fmt)
 if number == 'Final questions':
     current_rows = df[df.number == -1]
