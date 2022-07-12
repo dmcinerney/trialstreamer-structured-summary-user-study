@@ -135,7 +135,8 @@ else:
                 format_func=likert_format,
                 index=0 if current_rows is None else int(current_rows.iloc[0].faithfulness)-1,
                 key='faithfulness_%s' % number)
-        st.write('As best you can tell using the punchlines, highlight anything that does not seem to be faithful to the studies.')
+        st.write('##### Highlight Errors')
+        st.write('As best you can tell using the punchlines, highlight anything that does not seem to be faithful to the studies. (You can remove a highlight by clicking on it.)')
         error_annotations = text_highlighter(
             ' '.join(instance_info['summary']), labels=['error']
         )
