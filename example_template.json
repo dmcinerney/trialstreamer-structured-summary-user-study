@@ -1,0 +1,62 @@
+{
+	"system": "System name",
+	"search terms": {
+		"population": "diabetes",
+		"intervention": "insulin"
+	},
+	"summary": [
+		"this",
+		"is",
+		"a",
+		"summary",
+		"."
+	],
+	"labels": [
+		0,
+		1,
+		0,
+		2,
+		3
+	],
+	"label names": [
+		"population",
+		"intervention",
+		"outcome",
+		"other"
+	],
+	"studies": [
+		{
+			"title": "study 1",
+			"punchline": "punchline 1",
+			"populations": [
+				"pop 1",
+				"pop 2"
+			],
+			"interventions": [
+				"int 1",
+				"int 2"
+			],
+			"outcomes": [
+				"out 1",
+				"out 2"
+			]
+		},
+		{
+			"title": "study 2",
+			"punchline": "punchline 2",
+			"populations": [
+				"pop 1",
+				"pop 2"
+			],
+			"interventions": [
+				"int 1",
+				"int 2"
+			],
+			"outcomes": [
+				"out 1",
+				"out 2"
+			]
+		}
+	]
+}
+
