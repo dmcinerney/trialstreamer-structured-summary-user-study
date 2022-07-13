@@ -82,6 +82,8 @@ if st.session_state.updated and len(df) > 0:
     for k in ['search terms', 'summary', 'labels', 'label names', 'studies', 'error_annotations']:
         df_to_save[k] = df_to_save[k].apply(json.dumps)
     df_to_save.to_csv(os.path.join('annotations', current_session_name + '.csv'), index=False)
+elif os.path.exists(os.path.join('annotations', current_session_name + '.csv')):
+    os.remove(os.path.join('annotations', current_session_name + '.csv'))
 # Annotation Interface
 st.write('Annotator: ' + name)
 st.write('You have annotated **%i** instances. You have **%scompleted** the final questions.' % (len(df[df.number != -1]), '' if -1 in set(df.number) else 'not '))
