@@ -56,6 +56,19 @@ class StartAnns:
         st.session_state.updated = False
 
 
+def download_all_anns_button():
+    if os.path.exists('annotations.zip') and len(os.listdir('annotations')) > 0:
+        with open('annotations.zip', 'rb') as f:
+            st.download_button(
+                label='Download All Annotations',
+                data=f,
+                file_name='all_annotations.zip',
+                mime='application/zip'
+            )
+    else:
+        st.download_button('Download All Annotations', '', disabled=True)
+
+
 # Get session info
 if 'session_id' not in st.session_state:
     st.session_state.session_id = get_script_run_ctx().session_id
@@ -63,23 +76,14 @@ if 'session_id' not in st.session_state:
 st.write('# Trialstreamer User Study')
 st.write('Session start time: ' + st.session_state.datetime)
 st.write('Session ID: ' + st.session_state.session_id)
-if os.path.exists('annotations.zip'):
-    with open('annotations.zip', 'rb') as f:
-        st.download_button(
-            label='Download All Annotations',
-            data=f,
-            file_name='all_annotations.zip',
-            mime='application/zip'
-        )
-else:
-    st.download_button('Download All Annotations', '', disabled=True)
+if not os.path.exists('annotations'):
+    os.mkdir('annotations')
 # Get user name
 if 'name' not in st.session_state:
+    download_all_anns_button()
     # Session name
     name = st.text_input('Enter your name:')
     # Get annotations
-    if not os.path.exists('annotations'):
-        os.mkdir('annotations')
     starting_anns = st.selectbox(
         'Please choose which annotations to start from and click \"Start Annotating\".', ['Start a new set'] + os.listdir('annotations'))
     st.button('Start Annotating', on_click=StartAnns(name, starting_anns), disabled=name=="")
@@ -99,6 +103,7 @@ if st.session_state.updated and len(df) > 0:
                 f.write(os.path.join(root, file))
 elif os.path.exists(os.path.join('annotations', current_session_name + '.csv')):
     os.remove(os.path.join('annotations', current_session_name + '.csv'))
+download_all_anns_button()
 # Annotation Interface
 st.write('Annotator: ' + name)
 st.write('You have annotated **%i** instances. You have **%scompleted** the final questions.' % (len(df[df.number != -1]), '' if -1 in set(df.number) else 'not '))
@@ -143,7 +148,7 @@ else:
         current_rows = df[df.number == number]
     else:
         number = len(set(df[df.number != -1].number))
-        assert number not in df.number
+        assert number not in set(df.number)
         current_rows = None
     if current_rows is None:
         value = ""
@@ -205,7 +210,7 @@ else:
         error_annotations = {str(k): v for k, v in enumerate(error_annotations)}
         st.write('### Per Error Annotations')
         for i, error_ann in error_annotations.items():
-            st.write('#### Error %s: %s' % (i, error_ann['text']))
+            st.write('##### Error %s: %s' % (i, error_ann['text']))
             error_ann['error_confirmation'] = st.radio(
                 'Can you confirm if this is an error using the interface?', options=['no', 'yes'],
                 key='error_confirmation_%s_%i' % (i, number), horizontal=True)
@@ -213,7 +218,7 @@ else:
                 'Does clicking on the words in this error provide insight as to where it came from?', options=['no', 'yes'],
                 key='error_insight_%s_%i' % (i, number), horizontal=True)
         st.write('### Concluding questions')
-        accuracy_assesment = st.radio('Rate the general accuray of the summary.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
+        accuracy_assesment = st.radio('Rate the general accuracy of the summary.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
             index=0 if current_rows is None else int(current_rows.iloc[0].accuracy_assesment)-1,
             format_func=likert_format)
         confidence_in_accuracy_assesment = st.radio('Rate how confident are you in your answer above?', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
