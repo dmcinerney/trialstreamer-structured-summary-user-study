@@ -3,6 +3,8 @@ import pandas as pd
 import os
 import json
 from text_highlighter import text_highlighter
+from streamlit.scriptrunner import get_script_run_ctx
+from datetime import datetime
 
 
 class UpdateDF:
@@ -14,6 +16,7 @@ class UpdateDF:
         df = df[df.number != self.rows.iloc[0].number]
         st.session_state.df = pd.concat([df, pd.DataFrame(self.rows)])
         st.session_state.df.sort_values(['number'], inplace=True)
+        st.session_state.updated = True
 
 
 class DeleteExample:
@@ -24,26 +27,68 @@ class DeleteExample:
         st.session_state.df = df[df.number != self.number]
         where_not_m1 = st.session_state.df.number != -1
         st.session_state.df['number'][where_not_m1] = range(len(st.session_state.df[where_not_m1]))
+        st.session_state.updated = True
 
 
+class StartAnns:
+    def __init__(self, name, starting_anns):
+        self.name = name
+        self.starting_anns = starting_anns
+    def __call__(self):
+        st.session_state['name'] = self.name
+        st.session_state['starting_anns'] = self.starting_anns
+        if self.starting_anns == 'Start a new set':
+            df = pd.DataFrame([], columns=['number', 'search terms', 'system', 'summary', 'labels', 'label names', 'studies', 'error_annotations'])
+        else:
+            df = pd.read_csv(
+                os.path.join('annotations', self.starting_anns),
+                converters={
+                    'search terms': json.loads,
+                    'summary': json.loads,
+                    'labels': json.loads,
+                    'label names': json.loads,
+                    'studies': json.loads,
+                    'error_annotations': json.loads,
+                },
+            )
+        st.session_state['df'] = df
+        st.session_state.updated = False
+
+
+# Get session info
+if 'session_id' not in st.session_state:
+    st.session_state.session_id = get_script_run_ctx().session_id
+    st.session_state.datetime = datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
 st.write('# Trialstreamer User Study')
-if 'name' in st.session_state:
-    name = st.session_state.name
-    st.write('Annotator: ' + name)
-else:
-    name = st.text_input('Enter your name:')
-if name == "":
-    st.stop()
+st.write('Session start time: ' + st.session_state.datetime)
+st.write('Session ID: ' + st.session_state.session_id)
+# Get user name
 if 'name' not in st.session_state:
-    st.session_state.name = name
-    st.experimental_rerun()
-st.write('#### WARNING: You must download the csv using the \"Download CSV\" button below BEFORE you exit the window, otherwise all annotations WILL BE LOST.')
-if 'df' not in st.session_state.keys():
-    st.session_state['df'] = pd.DataFrame([], columns=['number', 'search terms', 'system'])
+    # Session name
+    name = st.text_input('Enter your name:')
+    # Get annotations
+    if not os.path.exists('annotations'):
+        os.mkdir('annotations')
+    starting_anns = st.selectbox(
+        'Please choose which annotations to start from and click \"Start Annotating\".', ['Start a new set'] + os.listdir('annotations'))
+    st.button('Start Annotating', on_click=StartAnns(name, starting_anns), disabled=name=="")
+    st.stop()
+current_session_name = '%s_%s_%s' % (st.session_state.name, st.session_state.datetime, st.session_state.session_id)
+name = st.session_state.name
 df = st.session_state['df']
+# Save Annotations
+if st.session_state.updated and len(df) > 0:
+    df_to_save = df.copy()
+    for k in ['search terms', 'summary', 'labels', 'label names', 'studies', 'error_annotations']:
+        df_to_save[k] = df_to_save[k].apply(json.dumps)
+    df_to_save.to_csv(os.path.join('annotations', current_session_name + '.csv'), index=False)
+# Annotation Interface
+st.write('Annotator: ' + name)
 st.write('You have annotated **%i** instances. You have **%scompleted** the final questions.' % (len(df[df.number != -1]), '' if -1 in set(df.number) else 'not '))
 with st.expander('All annotations'):
     st.write(df)
+    st.write('##### WARNING: Be careful with the button below!')
+    st.button('Revert All Annotation Edits from the Current Session', on_click=StartAnns(name, st.session_state.starting_anns))
 st.download_button('Download CSV', st.session_state.df.to_csv(index=False), file_name='annotations.csv')
 options = ['Add new example', 'Final questions']
 if len(df) > 0:
@@ -140,15 +185,16 @@ else:
         error_annotations = text_highlighter(
             ' '.join(instance_info['summary']), labels=['error']
         )
+        error_annotations = {str(k): v for k, v in enumerate(error_annotations)}
         st.write('### Per Error Annotations')
-        for i, error_ann in enumerate(error_annotations):
-            st.write('#### Error %i: %s' % (i, error_ann['text']))
+        for i, error_ann in error_annotations.items():
+            st.write('#### Error %s: %s' % (i, error_ann['text']))
             error_ann['error_confirmation'] = st.radio(
                 'Can you confirm if this is an error using the interface?', options=['no', 'yes'],
-                key='error_confirmation_%i_%i' % (i, number), horizontal=True)
+                key='error_confirmation_%s_%i' % (i, number), horizontal=True)
             error_ann['error_insight'] = st.radio(
                 'Does clicking on the words in this error provide insight as to where it came from?', options=['no', 'yes'],
-                key='error_insight_%i_%i' % (i, number), horizontal=True)
+                key='error_insight_%s_%i' % (i, number), horizontal=True)
         st.write('### Concluding questions')
         accuracy_assesment = st.radio('Rate the general accuray of the summary.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
             index=0 if current_rows is None else int(current_rows.iloc[0].accuracy_assesment)-1,
