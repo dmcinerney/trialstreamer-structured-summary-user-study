@@ -5,6 +5,7 @@ import json
 from text_highlighter import text_highlighter
 from streamlit.scriptrunner import get_script_run_ctx
 from datetime import datetime
+import zipfile
 
 
 class UpdateDF:
@@ -62,6 +63,16 @@ if 'session_id' not in st.session_state:
 st.write('# Trialstreamer User Study')
 st.write('Session start time: ' + st.session_state.datetime)
 st.write('Session ID: ' + st.session_state.session_id)
+if os.path.exists('annotations.zip'):
+    with open('annotations.zip', 'rb') as f:
+        st.download_button(
+            label='Download All Annotations',
+            data=f,
+            file_name='all_annotations.zip',
+            mime='application/zip'
+        )
+else:
+    st.download_button('Download All Annotations', '', disabled=True)
 # Get user name
 if 'name' not in st.session_state:
     # Session name
@@ -82,6 +93,10 @@ if st.session_state.updated and len(df) > 0:
     for k in ['search terms', 'summary', 'labels', 'label names', 'studies', 'error_annotations']:
         df_to_save[k] = df_to_save[k].apply(json.dumps)
     df_to_save.to_csv(os.path.join('annotations', current_session_name + '.csv'), index=False)
+    with zipfile.ZipFile('annotations.zip', 'w') as f:
+        for root, directories, files in os.walk('annotations'):
+            for file in files:
+                f.write(os.path.join(root, file))
 elif os.path.exists(os.path.join('annotations', current_session_name + '.csv')):
     os.remove(os.path.join('annotations', current_session_name + '.csv'))
 # Annotation Interface
@@ -91,7 +106,7 @@ with st.expander('All annotations'):
     st.write(df)
     st.write('##### WARNING: Be careful with the button below!')
     st.button('Revert All Annotation Edits from the Current Session', on_click=StartAnns(name, st.session_state.starting_anns))
-st.download_button('Download CSV', st.session_state.df.to_csv(index=False), file_name='annotations.csv')
+st.download_button('Download Session Annotations', st.session_state.df.to_csv(index=False), file_name='session_annotations.csv')
 options = ['Add new example', 'Final questions']
 if len(df) > 0:
     options += sorted(list(set(df[df.number != -1].number)))
