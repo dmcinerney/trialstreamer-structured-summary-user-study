@@ -269,7 +269,7 @@ else:
                     key='error_insight_%s_%i' % (i, number), horizontal=True, index=0 if 'error_insight' not in error_ann else no_yes_index[error_ann['error_insight']])
     st.write('### Concluding question')
     st.write('Above you rated the accuracy of the summary at a **%i** out of 5.' % accuracy)
-    confidence_in_accuracy = st.radio('Now rate how confident are you in your answer above?', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
+    confidence_in_accuracy = st.radio('Now rate how confident you are in your assesment of the accuracy.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
         index=0 if current_rows is None else int(current_rows.iloc[0].confidence_in_accuracy)-1,
         format_func=likert_format)
     rows = pd.DataFrame([dict(
