@@ -1,5 +1,6 @@
 {
 	"system": "System name",
+        "has aspects": true,
 	"search terms": {
 		"population": "diabetes",
 		"intervention": "insulin"
