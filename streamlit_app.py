@@ -268,6 +268,7 @@ else:
         index=0 if current_rows is None else int(current_rows.iloc[0].accuracy)-1,
         key='accuracy_%s' % number, horizontal=True)
 #    st.write('Above you rated the accuracy of the summary at a **%i** out of 5.' % accuracy)
+    st.write('##### Confidence')
     confidence_in_accuracy = st.radio('Now rate how confident you are in your assesment of the accuracy.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
         index=0 if current_rows is None else int(current_rows.iloc[0].confidence_in_accuracy)-1,
         format_func=likert_format)
