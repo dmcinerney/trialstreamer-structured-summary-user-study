@@ -199,7 +199,7 @@ else:
     st.write('<p class="big-font">Summary: <b>%s</b></p>' % ' '.join(instance_info['summary']), unsafe_allow_html=True)
     st.write('#### Initial questions')
     likert_format = lambda x: '1 (worst)' if x == 1 else '5 (best)' if x == 5 else x
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     with c1:
         st.write('##### Readability')
         readability = st.radio('Rate the readability of the summary (i.e. general fluency, coherency, sensability).', options=[1, 2, 3, 4, 5],
@@ -218,14 +218,6 @@ else:
             format_func=likert_format,
             index=0 if current_rows is None else int(current_rows.iloc[0].recall)-1,
             key='recall_%s' % number)
-    with c4:
-        st.write('##### Accuracy')
-        accuracy = st.radio(
-            'As best you can tell (without clicking on the summary words), rate how well the summary accurately reflects the studies (i.e. does not contain hallucinations and remains factual).',
-            options=[1, 2, 3, 4, 5],
-            format_func=likert_format,
-            index=0 if current_rows is None else int(current_rows.iloc[0].accuracy)-1,
-            key='accuracy_%s' % number)
     st.write('##### Highlight Errors')
     st.write('As best you can tell using the punchlines, highlight anything that does not seem to be faithful to the studies. (You can remove a highlight by clicking on it.)')
     with st.container():
@@ -268,7 +260,14 @@ else:
                     'Does clicking on the words in this error provide insight as to where it came from?', options=no_yes_options,
                     key='error_insight_%s_%i' % (i, number), horizontal=True, index=0 if 'error_insight' not in error_ann else no_yes_index[error_ann['error_insight']])
     st.write('### Concluding question')
-    st.write('Above you rated the accuracy of the summary at a **%i** out of 5.' % accuracy)
+    st.write('##### Accuracy')
+    accuracy = st.radio(
+        'As best you can tell (without clicking on the summary words), rate how well the summary accurately reflects the studies (i.e. does not contain hallucinations and remains factual).',
+        options=[1, 2, 3, 4, 5],
+        format_func=likert_format,
+        index=0 if current_rows is None else int(current_rows.iloc[0].accuracy)-1,
+        key='accuracy_%s' % number, horizontal=True)
+#    st.write('Above you rated the accuracy of the summary at a **%i** out of 5.' % accuracy)
     confidence_in_accuracy = st.radio('Now rate how confident you are in your assesment of the accuracy.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
         index=0 if current_rows is None else int(current_rows.iloc[0].confidence_in_accuracy)-1,
         format_func=likert_format)
