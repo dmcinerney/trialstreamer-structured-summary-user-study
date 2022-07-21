@@ -46,7 +46,8 @@ class StartAnns:
         st.session_state['name'] = self.name
         st.session_state['starting_anns'] = self.starting_anns
         if self.starting_anns == 'Start a new set':
-            df = pd.DataFrame([], columns=['number', 'search terms', 'system', 'summary', 'labels', 'label names', 'studies', 'error_annotations'])
+            df = pd.DataFrame([], columns=['number', 'search terms', 'system', 'summary', 'labels', 'label names', 'studies', 'error_annotations',
+                'annotator', 'has aspects', 'readability', 'relevance', 'recall', 'accuracy', 'confidence_in_accuracy', 'template_preference', 'template'])
         else:
             df = pd.read_csv(
                 os.path.join('annotations', self.starting_anns),
@@ -132,7 +133,9 @@ def get_ann_title(o):
    if o not in set(df.number):
        return o
    search_terms = df[df.number == o].iloc[0]['search terms']
-   return 'Pop: %s, Int: %s (%s)' % (search_terms['population'], search_terms['intervention'], df[df.number == o].iloc[0]['system'])
+   template = df[df.number == o].iloc[0]['template']
+   template_addon = ' with template' if template == template and template is not None else ''
+   return '%i. Pop: %s, Int: %s (%s%s)' % (o, search_terms['population'], search_terms['intervention'], df[df.number == o].iloc[0]['system'], template_addon)
 number = st.selectbox('Example to edit/annotate:', options, format_func=get_ann_title)
 if number == 'Final Questions':
     st.write('### Final Questions')
@@ -168,9 +171,16 @@ else:
     if current_rows is None:
         value = ""
     else:
+        def df_to_json_python_objects(k):
+            element = current_rows.iloc[0][k]
+            if k == 'has aspects':
+                element = bool(element)
+            if k == 'template' and element != element:
+                return None
+            return element
         value = json.dumps(
-            {k: current_rows.iloc[0][k] if k != 'has aspects' else bool(current_rows.iloc[0][k])
-             for k in ['system', 'has aspects', 'search terms', 'summary', 'labels', 'label names', 'studies']}, indent=4)
+            {k: df_to_json_python_objects(k)
+             for k in ['system', 'has aspects', 'search terms', 'summary', 'labels', 'label names', 'studies', 'template']}, indent=4)
     instance_info = st.text_area(
         'Paste the json automatically copied to your clipboard when you push the \"Copy info to clipboard\" button on the trialstreamer interface',
         value=value,
@@ -186,17 +196,27 @@ else:
     assert 'population' in instance_info['search terms']
     assert 'intervention' in instance_info['search terms']
     assert len(instance_info['search terms']) == 2
+    has_template = 'template' in instance_info and instance_info['template'] is not None
+    if has_template:
+        assert instance_info['has aspects']
+        st.warning("Warning: You are annotating a template summary. If you have not done so yet, you should annotate the \"General Summary\" first and then come back to the template summary.")
     st.markdown("""
         <style>
+        .bigger-font {
+            font-size:24px !important;
+        }
         .big-font {
-            font-size:20px !important;
+            font-size:18px !important;
         }
         </style>
         """, unsafe_allow_html=True)
-    st.markdown('<p class="big-font">Population: <b>%s</b>, Intervention: <b>%s (%s)</b></p>' % (
-        instance_info['search terms']['population'], instance_info['search terms']['intervention'],
-        instance_info['system']), unsafe_allow_html=True)
+    template_addon = ' with template' if has_template else ''
+    st.markdown('<p class="bigger-font">%i. Population: <b>%s</b>, Intervention: <b>%s (%s%s)</b></p>' % (
+        number, instance_info['search terms']['population'], instance_info['search terms']['intervention'],
+        instance_info['system'], template_addon), unsafe_allow_html=True)
     st.write('<p class="big-font">Summary: <b>%s</b></p>' % ' '.join(instance_info['summary']), unsafe_allow_html=True)
+    if has_template:
+        st.write('<p class="big-font">Template: <b>%s</b></p>' % instance_info['template'], unsafe_allow_html=True)
     likert_format = lambda x: '1 (worst)' if x == 1 else '5 (best)' if x == 5 else x
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -218,7 +238,8 @@ else:
             index=0 if current_rows is None else int(current_rows.iloc[0].recall)-1,
             key='recall_%s' % number)
     st.write('##### Highlight Errors')
-    st.write('As best you can tell using the punchlines, highlight anything that does not seem to be faithful to the studies. (You can remove a highlight by clicking on it.)')
+    st.write('As best you can tell using the _punchlines_, highlight anything that does not seem to be faithful to the studies. (You can remove a highlight by clicking on it.)')
+    st.write('_Punchlines_: Snippets extracted from the studies and displayed in the “Overview” section of the interface.')
     with st.container():
         error_annotations = text_highlighter(
             ' '.join(instance_info['summary']), labels=[''], annotations=[] if current_rows is None else list(current_rows.iloc[0].error_annotations.values())
@@ -270,6 +291,12 @@ else:
     confidence_in_accuracy = st.radio('Now rate how confident you are in your assesment of the accuracy.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
         index=0 if current_rows is None else int(current_rows.iloc[0].confidence_in_accuracy)-1,
         format_func=likert_format)
+    if has_template:
+        st.write('##### Extra Template Summary Question')
+        template_preference = st.radio('Do you prefer this template summary over the original (\"General Summary\")?', options=no_yes_options, key=number, horizontal=True,
+            index=0 if current_rows is None else no_yes_index[current_rows.iloc[0].template_preference])
+    else:
+        template_preference = None
     rows = pd.DataFrame([dict(
         number=number,
         annotator=name,
@@ -280,6 +307,7 @@ else:
         error_annotations=error_annotations,
         accuracy=accuracy,
         confidence_in_accuracy=confidence_in_accuracy,
+        template_preference=template_preference,
     )])
     st.button('Submit', on_click=UpdateDF(rows))
     if current_rows is not None:
