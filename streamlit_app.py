@@ -129,13 +129,16 @@ st.download_button('Download Session Annotations', st.session_state.df.to_csv(in
 options = ['Add New Annotation', 'Final Questions']
 if len(df) > 0:
     options += sorted(list(set(df[df.number != -1].number)))
+search_term_names = {'population': 'Population', 'intervention': 'Intervention', 'outcome': 'Outcome'}
+shortened_search_term_names = {'population': 'Pop', 'intervention': 'Int', 'outcome': 'Out'}
 def get_ann_title(o):
-   if o not in set(df.number):
-       return o
-   search_terms = df[df.number == o].iloc[0]['search terms']
-   template = df[df.number == o].iloc[0]['template']
-   template_addon = ' with template' if template == template and template is not None else ''
-   return '%i. Pop: %s, Int: %s (%s%s)' % (o, search_terms['population'], search_terms['intervention'], df[df.number == o].iloc[0]['system'], template_addon)
+    if o not in set(df.number):
+        return o
+    search_terms = df[df.number == o].iloc[0]['search terms']
+    template = df[df.number == o].iloc[0]['template']
+    template_addon = ' with template' if template == template and template is not None else ''
+    search_term_string = ', '.join(['%s: %s' % (v, search_terms[k]) for k, v in shortened_search_term_names.items() if k in search_terms.keys()])
+    return '%i. %s (%s%s)' % (o, search_term_string, df[df.number == o].iloc[0]['system'], template_addon)
 number = st.selectbox('Example to edit/annotate:', options, format_func=get_ann_title)
 if number == 'Final Questions':
     st.write('### Final Questions')
@@ -166,7 +169,7 @@ else:
         current_rows = df[df.number == number]
     else:
         number = len(set(df[df.number != -1].number))
-        assert number not in set(df.number)
+        assert number not in set(df.number), number
         current_rows = None
     if current_rows is None:
         value = ""
@@ -193,9 +196,9 @@ else:
     except json.decoder.JSONDecodeError as e:
         st.error("Error decoding json")
         st.stop()
-    assert 'population' in instance_info['search terms']
-    assert 'intervention' in instance_info['search terms']
-    assert len(instance_info['search terms']) == 2
+    for k in instance_info['search terms'].keys():
+        assert k in search_term_names.keys(), k
+    assert len(instance_info['search terms']) >= 2
     has_template = 'template' in instance_info and instance_info['template'] is not None
     if has_template:
         assert instance_info['has aspects']
@@ -211,8 +214,9 @@ else:
         </style>
         """, unsafe_allow_html=True)
     template_addon = ' with template' if has_template else ''
-    st.markdown('<p class="bigger-font">%i. Population: <b>%s</b>, Intervention: <b>%s (%s%s)</b></p>' % (
-        number, instance_info['search terms']['population'], instance_info['search terms']['intervention'],
+    search_term_string = ', '.join(['%s: %s' % (v, instance_info['search terms'][k]) for k, v in search_term_names.items() if k in instance_info['search terms'].keys()])
+    st.markdown('<p class="bigger-font">%i. %s <b>(%s%s)</b></p>' % (
+        number, search_term_string,
         instance_info['system'], template_addon), unsafe_allow_html=True)
     st.write('<p class="big-font">Summary: <b>%s</b></p>' % ' '.join(instance_info['summary']), unsafe_allow_html=True)
     if has_template:
