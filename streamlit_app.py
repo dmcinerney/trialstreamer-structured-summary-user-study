@@ -63,7 +63,9 @@ class StartAnns:
 #                    'error_annotations': json.loads,
 #                },
 #            )
+            st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
             df = pd.read_sql_table(self.starting_anns, st.session_state.sqlalchemy_conn)
+            st.session_state.sqlalchemy_conn.close()
             for k in ['search terms', 'summary', 'labels', 'label names', 'studies', 'error_annotations']:
                 df[k] = df[k].apply(json.loads)
         st.session_state['df'] = df
@@ -93,9 +95,8 @@ def download_all_anns_button():
         st.download_button('Download All Annotations', '', disabled=True)
 
 
-def stop():
+def cleanup():
     st.session_state.sqlalchemy_conn.close()
-    st.stop()
 
 
 #    dialect = 'postgresql'
@@ -142,10 +143,11 @@ if 'name' not in st.session_state:
             'Please choose which annotations to start from and click \"Start Annotating\".', ['Start a new set'] + list(tables.keys()),
             format_func=lambda x: tables[x] if x != 'Start a new set' else x)
         submitted = st.form_submit_button('Start Annotation Session')
+    cleanup()
     if submitted:
         StartAnns(name, starting_anns)()
         st.experimental_rerun()
-    stop()
+    st.stop()
 #current_session_name = '%s__%s__%s' % (st.session_state.name, st.session_state.datetime, st.session_state.session_id)
 #current_session_name = current_session_name[:63]
 current_session_name = st.session_state.session_id
@@ -184,7 +186,7 @@ else:
         # drop session table
         psycopg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         cursor = psycopg_conn.cursor()
-        cursor.execute('''DROP TABLE %s''' % current_session_name)
+        cursor.execute("DROP TABLE \"%s\"" % current_session_name)
         psycopg_conn.commit()
         psycopg_conn.close()
         # update session info
@@ -222,7 +224,8 @@ if number == 'Final Questions':
     systems_to_index = {system: i for i, system in enumerate(systems)}
     if len(systems) < 2:
         st.error('You cannot perform concluding questions until you have annotated instances on multiple systems.')
-        stop()
+        cleanup()
+        st.stop()
     preferred_summaries = st.radio('Which system produced the best summaries?', options=systems, key='preferred_summaries',
         index=0 if current_rows is None else systems_to_index[current_rows.iloc[0].preferred_summaries])
     preferred_interface = st.radio('Which interface do you prefer?', options=systems, key='preferred_interface',
@@ -263,12 +266,14 @@ else:
         key=number,
         disabled=current_rows is not None)
     if instance_info == "":
-        stop()
+        cleanup()
+        st.stop()
     try:
         instance_info = json.loads(instance_info)
     except json.decoder.JSONDecodeError as e:
         st.error("Error decoding json")
-        stop()
+        cleanup()
+        st.stop()
     for k in instance_info['search terms'].keys():
         assert k in search_term_names.keys(), k
     assert len(instance_info['search terms']) >= 2
@@ -389,4 +394,4 @@ else:
     st.button('Submit', on_click=UpdateDF(rows))
     if current_rows is not None:
         st.button('Delete', on_click=DeleteExample(number))
-stop()
+cleanup()
