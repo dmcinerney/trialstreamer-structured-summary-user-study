@@ -71,7 +71,8 @@ class StartAnns:
 
 
 def download_all_anns_button():
-    table_names = st.session_state.inspector.get_table_names(schema='public')
+    inspector = inspect(st.session_state.sqlalchemy_db)
+    table_names = inspector.get_table_names(schema='public')
     if len(table_names) > 0:
         if not os.path.exists('annotations'):
             os.mkdir('annotations')
@@ -108,9 +109,9 @@ DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://')
 if 'sqlalchemy_db' not in st.session_state:
     #st.write(DATABASE_URL)
     st.session_state.sqlalchemy_db = create_engine(DATABASE_URL)
-    st.session_state.inspector = inspect(st.session_state.sqlalchemy_db)
     st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
-    if 'session_info' not in st.session_state.inspector.get_table_names(schema='public'):
+    inspector = inspect(st.session_state.sqlalchemy_db)
+    if 'session_info' not in inspector.get_table_names(schema='public'):
         session_info = pd.DataFrame([], columns=['session_id', 'annotator', 'datetime', 'starting_anns'])
         session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False)
 else:
