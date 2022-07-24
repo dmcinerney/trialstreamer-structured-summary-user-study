@@ -232,7 +232,7 @@ if number == 'Final Questions':
         index=0 if current_rows is None else systems_to_index[current_rows.iloc[0].preferred_interface])
     rows = pd.DataFrame([{
         'number': -1,
-        'annotator': name,
+        'session': current_session_name,
         'preferred_summaries': preferred_summaries,
         'preferred_interface': preferred_interface,
     }])
