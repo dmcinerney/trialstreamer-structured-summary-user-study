@@ -109,10 +109,12 @@ if 'sqlalchemy_db' not in st.session_state:
     #st.write(DATABASE_URL)
     st.session_state.sqlalchemy_db = create_engine(DATABASE_URL)
     st.session_state.inspector = inspect(st.session_state.sqlalchemy_db)
+    st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
     if 'session_info' not in st.session_state.inspector.get_table_names(schema='public'):
         session_info = pd.DataFrame([], columns=['session_id', 'annotator', 'datetime', 'starting_anns'])
         session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False)
-st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
+else:
+    st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
 # Get session info
 if 'session_id' not in st.session_state:
     st.session_state.session_id = get_script_run_ctx().session_id.replace('-', '_')
