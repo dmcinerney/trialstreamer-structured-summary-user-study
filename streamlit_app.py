@@ -92,24 +92,30 @@ def download_all_anns_button():
         st.download_button('Download All Annotations', '', disabled=True)
 
 
-# Get session info
-if 'sqlalchemy_db' not in st.session_state:
+def stop():
+    st.session_state.sqlalchemy_conn.close()
+    st.session_state.psycopg_conn.close()
+    st.stop()
+
+
 #    dialect = 'postgresql'
 #    user = 'postgres'
 #    password = 'postgres'
 #    host = 'localhost'
 #    database = 'jered'
 #    DATABASE_URL = '%s://%s:%s@%s/%s' % (dialect, user, password, host, database)
-    DATABASE_URL = os.environ['DATABASE_URL']
-    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://')
+DATABASE_URL = os.environ['DATABASE_URL']
+DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://')
+if 'sqlalchemy_db' not in st.session_state:
     #st.write(DATABASE_URL)
     st.session_state.sqlalchemy_db = create_engine(DATABASE_URL)
-    st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
     st.session_state.inspector = inspect(st.session_state.sqlalchemy_db)
-    st.session_state.psycopg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     if 'session_info' not in st.session_state.inspector.get_table_names(schema='public'):
         session_info = pd.DataFrame([], columns=['session_id', 'annotator', 'datetime', 'starting_anns'])
         session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False)
+st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
+st.session_state.psycopg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+# Get session info
 if 'session_id' not in st.session_state:
     st.session_state.session_id = get_script_run_ctx().session_id.replace('-', '_')
     st.session_state.datetime = datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
@@ -138,7 +144,7 @@ if 'name' not in st.session_state:
     if submitted:
         StartAnns(name, starting_anns)()
         st.experimental_rerun()
-    st.stop()
+    stop()
 #current_session_name = '%s__%s__%s' % (st.session_state.name, st.session_state.datetime, st.session_state.session_id)
 #current_session_name = current_session_name[:63]
 current_session_name = st.session_state.session_id
@@ -172,12 +178,12 @@ if st.session_state.updated and len(df) > 0:
 #elif os.path.exists(os.path.join('annotations', current_session_name + '.csv')):
 #    os.remove(os.path.join('annotations', current_session_name + '.csv'))
 else:
-    cursor = st.session_state.psycopg_conn.cursor()
-    cursor.execute("select exists(select * from information_schema.tables where table_name=%s)", (current_session_name,))
-    if cursor.fetchone()[0]:
+    session_info = pd.read_sql_table('session_info', st.session_state.sqlalchemy_conn)
+    if current_session_name in set(session_info.session_id):
         # drop session table
-        cursor.execute('''DROP TABLE %s ''' % current_session_name)
-        conn.commit()
+        cursor = st.session_state.psycopg_conn.cursor()
+        cursor.execute('''DROP TABLE %s''' % current_session_name)
+        st.session_state.psycopg_conn.commit()
         # update session info
         session_info = session_info[session_info.session_id != current_session_name]
         session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False, if_exists='replace')
@@ -213,7 +219,7 @@ if number == 'Final Questions':
     systems_to_index = {system: i for i, system in enumerate(systems)}
     if len(systems) < 2:
         st.error('You cannot perform concluding questions until you have annotated instances on multiple systems.')
-        st.stop()
+        stop()
     preferred_summaries = st.radio('Which system produced the best summaries?', options=systems, key='preferred_summaries',
         index=0 if current_rows is None else systems_to_index[current_rows.iloc[0].preferred_summaries])
     preferred_interface = st.radio('Which interface do you prefer?', options=systems, key='preferred_interface',
@@ -254,12 +260,12 @@ else:
         key=number,
         disabled=current_rows is not None)
     if instance_info == "":
-        st.stop()
+        stop()
     try:
         instance_info = json.loads(instance_info)
     except json.decoder.JSONDecodeError as e:
         st.error("Error decoding json")
-        st.stop()
+        stop()
     for k in instance_info['search terms'].keys():
         assert k in search_term_names.keys(), k
     assert len(instance_info['search terms']) >= 2
@@ -380,3 +386,4 @@ else:
     st.button('Submit', on_click=UpdateDF(rows))
     if current_rows is not None:
         st.button('Delete', on_click=DeleteExample(number))
+stop()
