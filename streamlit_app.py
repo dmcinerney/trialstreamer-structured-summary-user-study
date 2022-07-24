@@ -78,9 +78,8 @@ def download_all_anns_button():
         for table in table_names:
             pd.read_sql_table(table, st.session_state.sqlalchemy_conn).to_csv('annotations/%s.csv' % table, index=False)
         with zipfile.ZipFile('annotations.zip', 'w') as f:
-            for root, directories, files in os.walk('annotations'):
-                for file in files:
-                    f.write(os.path.join(root, file))
+            for table in table_names:
+                f.write('annotations/%s.csv' % table)
 #    if os.path.exists('annotations.zip') and len(os.listdir('annotations')) > 0:
         with open('annotations.zip', 'rb') as f:
             st.download_button(
@@ -108,6 +107,9 @@ if 'sqlalchemy_db' not in st.session_state:
     st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
     st.session_state.inspector = inspect(st.session_state.sqlalchemy_db)
     st.session_state.psycopg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    if 'session_info' not in st.session_state.inspector.get_table_names(schema='public'):
+        session_info = pd.DataFrame([], columns=['session_id', 'annotator', 'datetime', 'starting_anns'])
+        session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False)
 if 'session_id' not in st.session_state:
     st.session_state.session_id = get_script_run_ctx().session_id.replace('-', '_')
     st.session_state.datetime = datetime.now().strftime("%d_%m_%Y_%H_%M_%S")
@@ -127,16 +129,19 @@ if 'name' not in st.session_state:
         # Get annotations
 #        starting_anns = st.selectbox(
 #            'Please choose which annotations to start from and click \"Start Annotating\".', ['Start a new set'] + os.listdir('annotations'))
-        table_names = st.session_state.inspector.get_table_names(schema='public')
+        session_info = pd.read_sql_table('session_info', st.session_state.sqlalchemy_conn)
+        tables = {r.session_id: '%s - %s' % (r.annotator, r.datetime) for i, r in session_info.iterrows()}
         starting_anns = st.selectbox(
-            'Please choose which annotations to start from and click \"Start Annotating\".', ['Start a new set'] + table_names)
+            'Please choose which annotations to start from and click \"Start Annotating\".', ['Start a new set'] + list(tables.keys()),
+            format_func=lambda x: tables[x] if x != 'Start a new set' else x)
         submitted = st.form_submit_button('Start Annotation Session')
     if submitted:
         StartAnns(name, starting_anns)()
         st.experimental_rerun()
     st.stop()
-current_session_name = '%s__%s__%s' % (st.session_state.name, st.session_state.datetime, st.session_state.session_id)
-current_session_name = current_session_name[:63]
+#current_session_name = '%s__%s__%s' % (st.session_state.name, st.session_state.datetime, st.session_state.session_id)
+#current_session_name = current_session_name[:63]
+current_session_name = st.session_state.session_id
 name = st.session_state.name
 df = st.session_state['df']
 # Save Annotations
@@ -145,7 +150,21 @@ if st.session_state.updated and len(df) > 0:
     for k in ['search terms', 'summary', 'labels', 'label names', 'studies', 'error_annotations']:
         df_to_save[k] = df_to_save[k].apply(json.dumps)
 #    df_to_save.to_csv(os.path.join('annotations', current_session_name + '.csv'), index=False)
+    # update session annotations
     df_to_save.to_sql(current_session_name, st.session_state.sqlalchemy_conn, index=False, if_exists='replace')
+    # update session info
+    session_info = pd.read_sql_table('session_info', st.session_state.sqlalchemy_conn)
+    if current_session_name not in set(session_info.session_id):
+        session_info = pd.concat([
+            session_info,
+            pd.DataFrame([{
+                'session_id': current_session_name,
+                'annotator': name,
+                'datetime': st.session_state.datetime,
+                'starting_anns': st.session_state.starting_anns,
+            }])
+        ])
+        session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False, if_exists='replace')
 #    with zipfile.ZipFile('annotations.zip', 'w') as f:
 #        for root, directories, files in os.walk('annotations'):
 #            for file in files:
@@ -156,8 +175,12 @@ else:
     cursor = st.session_state.psycopg_conn.cursor()
     cursor.execute("select exists(select * from information_schema.tables where table_name=%s)", (current_session_name,))
     if cursor.fetchone()[0]:
+        # drop session table
         cursor.execute('''DROP TABLE %s ''' % current_session_name)
         conn.commit()
+        # update session info
+        session_info = session_info[session_info.session_id != current_session_name]
+        session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False, if_exists='replace')
 download_all_anns_button()
 # Annotation Interface
 st.write('Annotator: ' + name)
@@ -344,7 +367,7 @@ else:
         template_preference = None
     rows = pd.DataFrame([dict(
         number=number,
-        annotator=name,
+        session=current_session_name,
         **instance_info,
         readability=readability,
         relevance=relevance,
