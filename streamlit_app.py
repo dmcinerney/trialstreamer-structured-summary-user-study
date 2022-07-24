@@ -94,7 +94,6 @@ def download_all_anns_button():
 
 def stop():
     st.session_state.sqlalchemy_conn.close()
-    st.session_state.psycopg_conn.close()
     st.stop()
 
 
@@ -114,7 +113,6 @@ if 'sqlalchemy_db' not in st.session_state:
         session_info = pd.DataFrame([], columns=['session_id', 'annotator', 'datetime', 'starting_anns'])
         session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False)
 st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
-st.session_state.psycopg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
 # Get session info
 if 'session_id' not in st.session_state:
     st.session_state.session_id = get_script_run_ctx().session_id.replace('-', '_')
@@ -181,9 +179,11 @@ else:
     session_info = pd.read_sql_table('session_info', st.session_state.sqlalchemy_conn)
     if current_session_name in set(session_info.session_id):
         # drop session table
-        cursor = st.session_state.psycopg_conn.cursor()
+        psycopg_conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cursor = psycopg_conn.cursor()
         cursor.execute('''DROP TABLE %s''' % current_session_name)
-        st.session_state.psycopg_conn.commit()
+        psycopg_conn.commit()
+        psycopg_conn.close()
         # update session info
         session_info = session_info[session_info.session_id != current_session_name]
         session_info.to_sql('session_info', st.session_state.sqlalchemy_conn, index=False, if_exists='replace')
