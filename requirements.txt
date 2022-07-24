@@ -1,3 +1,5 @@
 pandas
 streamlit
 text-highlighter
+psycopg2-binary
+sqlalchemy
