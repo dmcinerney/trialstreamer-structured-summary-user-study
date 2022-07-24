@@ -102,6 +102,7 @@ if 'database_conn' not in st.session_state:
 #    database = 'jered'
 #    DATABASE_URL = '%s://%s:%s@%s/%s' % (dialect, user, password, host, database)
     DATABASE_URL = os.environ['DATABASE_URL']
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://')
     st.write(DATABASE_URL)
     st.session_state.sqlalchemy_db = create_engine(DATABASE_URL)
     st.session_state.sqlalchemy_conn = st.session_state.sqlalchemy_db.connect()
