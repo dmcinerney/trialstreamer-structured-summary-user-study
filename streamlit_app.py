@@ -94,7 +94,7 @@ def download_all_anns_button():
 
 
 # Get session info
-if 'database_conn' not in st.session_state:
+if 'sqlalchemy_db' not in st.session_state:
 #    dialect = 'postgresql'
 #    user = 'postgres'
 #    password = 'postgres'
