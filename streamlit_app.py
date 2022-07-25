@@ -50,7 +50,7 @@ class StartAnns:
         st.session_state['starting_anns'] = self.starting_anns
         if self.starting_anns == 'Start a new set':
             df = pd.DataFrame([], columns=['number', 'search terms', 'system', 'summary', 'labels', 'label names', 'studies', 'error_annotations',
-                'annotator', 'has aspects', 'readability', 'relevance', 'recall', 'accuracy', 'confidence_in_accuracy', 'template_preference', 'template'])
+                'has aspects', 'readability', 'relevance', 'accuracy', 'interface_usefulness', 'template_preference', 'template'])
         else:
 #            df = pd.read_csv(
 #                os.path.join('annotations', self.starting_anns),
@@ -300,7 +300,8 @@ else:
     if has_template:
         st.write('<p class="big-font">Template: <b>%s</b></p>' % instance_info['template'], unsafe_allow_html=True)
     likert_format = lambda x: '1 (worst)' if x == 1 else '5 (best)' if x == 5 else x
-    c1, c2, c3 = st.columns(3)
+#    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     with c1:
         st.write('##### Readability')
         readability = st.radio('Rate the readability of the summary (i.e. general fluency, coherency, sensability).', options=[1, 2, 3, 4, 5],
@@ -313,12 +314,12 @@ else:
             format_func=likert_format,
             index=0 if current_rows is None else int(current_rows.iloc[0].relevance)-1,
             key='relevance_%s' % number)
-    with c3:
-        st.write('##### Recall')
-        recall = st.radio('Rate how well the summary includes all the important aspects of the studies (i.e. recall).', options=[1, 2, 3, 4, 5],
-            format_func=likert_format,
-            index=0 if current_rows is None else int(current_rows.iloc[0].recall)-1,
-            key='recall_%s' % number)
+#    with c3:
+#        st.write('##### Recall')
+#        recall = st.radio('Rate how well the summary includes all the important aspects of the studies (i.e. recall).', options=[1, 2, 3, 4, 5],
+#            format_func=likert_format,
+#            index=0 if current_rows is None else int(current_rows.iloc[0].recall)-1,
+#            key='recall_%s' % number)
     st.write('##### Highlight Errors')
     st.write('As best you can tell using the _punchlines_, highlight anything that does not seem to be faithful to the studies. (You can remove a highlight by clicking on it.)')
     st.write('_Punchlines_: Snippets extracted from the studies and displayed in the “Overview” section of the interface.')
@@ -369,9 +370,9 @@ else:
         index=0 if current_rows is None else int(current_rows.iloc[0].accuracy)-1,
         key='accuracy_%s' % number, horizontal=True)
 #    st.write('Above you rated the accuracy of the summary at a **%i** out of 5.' % accuracy)
-    st.write('##### Confidence in Accuracy Assesment')
-    confidence_in_accuracy = st.radio('Now rate how confident you are in your assesment of the accuracy.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
-        index=0 if current_rows is None else int(current_rows.iloc[0].confidence_in_accuracy)-1,
+    st.write('##### Usefulness of the Interface')
+    interface_usefulness = st.radio('Now rate the usefulness of the interface for this query.', options=[1, 2, 3, 4, 5], key=number, horizontal=True,
+        index=0 if current_rows is None else int(current_rows.iloc[0].interface_usefulness)-1,
         format_func=likert_format)
     if has_template:
         st.write('##### Extra Template Summary Question')
@@ -385,10 +386,10 @@ else:
         **instance_info,
         readability=readability,
         relevance=relevance,
-        recall=recall,
+        #recall=recall,
         error_annotations=error_annotations,
         accuracy=accuracy,
-        confidence_in_accuracy=confidence_in_accuracy,
+        interface_usefulness=interface_usefulness,
         template_preference=template_preference,
     )])
     st.button('Submit', on_click=UpdateDF(rows))
